@@ -3,134 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Loan Calculator with Sliders and Pie Chart</title>
+  <title>EMI Calculator</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    .slider-value {
-      font-weight: bold;
-    }
-  </style>
 </head>
 <body>
-<div class="container mt-5">
-  <h1 class="text-center">Loan Calculator</h1>
-  <div class="row justify-content-center">
+<div class="container my-5">
+  <h2 class="text-center">EMI Calculator</h2>
+  <div class="row my-4">
     <div class="col-md-6">
-      <!-- Loan Calculator Form -->
-      <form id="loan-form">
-        <div class="mb-3">
-          <label for="loanAmount" class="form-label">Loan Amount ($): <span id="loanAmountValue" class="slider-value">5000</span></label>
-          <input type="range" class="form-range" id="loanAmount" min="1000" max="50000" step="500" value="5000">
+      <!-- Loan Amount -->
+      <div class="mb-3">
+        <label for="loanAmountInput" class="form-label">Loan Amount (₹)</label>
+        <input type="range" class="form-range" id="loanAmountSlider" min="50000" max="5000000" step="10000">
+        <input type="number" class="form-control" id="loanAmountInput" value="500000">
+      </div>
+      <!-- Interest Rate -->
+      <div class="mb-3">
+        <label for="interestRateInput" class="form-label">Interest Rate (%)</label>
+        <input type="range" class="form-range" id="interestRateSlider" min="5" max="20" step="0.1">
+        <input type="number" class="form-control" id="interestRateInput" value="10">
+      </div>
+      <!-- Loan Tenure -->
+      <div class="mb-3">
+        <label for="loanTenureInput" class="form-label">Loan Tenure (Years)</label>
+        <input type="range" class="form-range" id="loanTenureSlider" min="1" max="30" step="1">
+        <input type="number" class="form-control" id="loanTenureInput" value="10">
+      </div>
+    </div>
+    <div class="col-md-6">
+      <!-- Results -->
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">EMI Details</h5>
+          <p>Loan EMI: ₹<span id="monthlyEMI">0</span></p>
+          <p>Total Interest Payable: ₹<span id="totalInterest">0</span></p>
+          <p>Total Payment (Principal + Interest): ₹<span id="totalAmountPaid">0</span></p>
         </div>
-        <div class="mb-3">
-          <label for="interestRate" class="form-label">Annual Interest Rate (%): <span id="interestRateValue" class="slider-value">5</span></label>
-          <input type="range" class="form-range" id="interestRate" min="1" max="20" step="0.1" value="5">
+      </div>
+      <!-- Pie Chart -->
+      <div class="my-3">
+        <canvas id="loanChart"></canvas>
+        <div class="text-center mt-2">
+          <span id="principalPercentage">Principal: 0%</span> | 
+          <span id="interestPercentage">Interest: 0%</span>
         </div>
-        <div class="mb-3">
-          <label for="loanTenure" class="form-label">Loan Tenure (Years): <span id="loanTenureValue" class="slider-value">5</span></label>
-          <input type="range" class="form-range" id="loanTenure" min="1" max="30" step="1" value="5">
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 
-  <!-- Results Section -->
-  <div class="row justify-content-center mt-4">
-    <div class="col-md-6">
-      <h4>Results</h4>
-      <ul class="list-group">
-        <li class="list-group-item">Total EMI (Monthly Payment): <strong>$<span id="monthlyEMI">0</span></strong></li>
-        <li class="list-group-item">Total Interest Paid: <strong>$<span id="totalInterest">0</span></strong></li>
-        <li class="list-group-item">Total Amount Paid: <strong>$<span id="totalAmountPaid">0</span></strong></li>
-      </ul>
-    </div>
+  <!-- EMI Schedule -->
+  <h4 class="my-4">EMI Payment Schedule</h4>
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Payment Date</th>
+          <th>EMI (₹)</th>
+          <th>Principal (₹)</th>
+          <th>Interest (₹)</th>
+        </tr>
+      </thead>
+      <tbody id="scheduleBody"></tbody>
+    </table>
   </div>
 
-  <!-- Chart Section -->
-  <div class="row justify-content-center mt-4">
-    <div class="col-md-6">
-      <canvas id="loanChart"></canvas>
-    </div>
-  </div>
+  <!-- Bar Chart -->
+  <h4 class="my-4">Yearly EMI Breakdown (Bar Chart)</h4>
+  <canvas id="emiBarChart" width="400" height="200"></canvas>
 </div>
 
 <script>
   // DOM Elements
-  const loanAmountSlider = document.getElementById('loanAmount');
-  const interestRateSlider = document.getElementById('interestRate');
-  const loanTenureSlider = document.getElementById('loanTenure');
-  const loanAmountValue = document.getElementById('loanAmountValue');
-  const interestRateValue = document.getElementById('interestRateValue');
-  const loanTenureValue = document.getElementById('loanTenureValue');
+  const loanAmountSlider = document.getElementById('loanAmountSlider');
+  const loanAmountInput = document.getElementById('loanAmountInput');
+  const interestRateSlider = document.getElementById('interestRateSlider');
+  const interestRateInput = document.getElementById('interestRateInput');
+  const loanTenureSlider = document.getElementById('loanTenureSlider');
+  const loanTenureInput = document.getElementById('loanTenureInput');
   const monthlyEMI = document.getElementById('monthlyEMI');
   const totalInterest = document.getElementById('totalInterest');
   const totalAmountPaid = document.getElementById('totalAmountPaid');
+  const scheduleBody = document.getElementById('scheduleBody');
   const loanChartCanvas = document.getElementById('loanChart');
+  let loanChart, emiBarChart;
 
-  let loanChart;
+  // Sync slider and input values
+  function syncValues(slider, input) {
+    input.value = slider.value;
+    updateCalculator();
+  }
 
-  // Update Values and Recalculate
+  // Update Calculator
   function updateCalculator() {
-    const loanAmount = parseFloat(loanAmountSlider.value);
-    const annualInterestRate = parseFloat(interestRateSlider.value);
-    const loanTenure = parseInt(loanTenureSlider.value);
+    const loanAmount = parseFloat(loanAmountInput.value);
+    const annualInterestRate = parseFloat(interestRateInput.value);
+    const loanTenure = parseInt(loanTenureInput.value);
 
-    // Update slider display values
-    loanAmountValue.textContent = loanAmount;
-    interestRateValue.textContent = annualInterestRate;
-    loanTenureValue.textContent = loanTenure;
-
-    // Calculate EMI
     const monthlyRate = (annualInterestRate / 100) / 12;
     const totalPayments = loanTenure * 12;
     const monthlyPayment = loanAmount * monthlyRate / (1 - Math.pow(1 + monthlyRate, -totalPayments));
     const totalRepayment = monthlyPayment * totalPayments;
     const totalInterestPaid = totalRepayment - loanAmount;
 
-    // Update results
+    // Update Results
     monthlyEMI.textContent = monthlyPayment.toFixed(2);
     totalInterest.textContent = totalInterestPaid.toFixed(2);
     totalAmountPaid.textContent = totalRepayment.toFixed(2);
 
-    // Update Chart
-    if (loanChart) {
-      loanChart.destroy();
-    }
+    // Update Pie Chart
+    const principalPercentage = (loanAmount / totalRepayment) * 100;
+    const interestPercentage = (totalInterestPaid / totalRepayment) * 100;
+
+    if (loanChart) loanChart.destroy();
     loanChart = new Chart(loanChartCanvas.getContext('2d'), {
       type: 'pie',
       data: {
         labels: ['Principal', 'Interest'],
         datasets: [{
-          label: 'Loan Breakdown',
-          data: [loanAmount, totalInterestPaid],
-          backgroundColor: ['#007bff', '#ffc107'],
-          hoverOffset: 4
+          data: [principalPercentage, interestPercentage],
+          backgroundColor: ['#007bff', '#ffc107']
         }]
-      },
-      options: {
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                return context.label + ': $' + context.raw.toFixed(2);
-              }
-            }
-          }
-        }
+      }
+    });
+
+    document.getElementById('principalPercentage').textContent = `Principal: ${principalPercentage.toFixed(2)}%`;
+    document.getElementById('interestPercentage').textContent = `Interest: ${interestPercentage.toFixed(2)}%`;
+
+    // Update EMI Schedule and Yearly Bar Chart
+    const emiData = generateEMISchedule(monthlyPayment, loanTenure);
+    updateYearlyBarChart(emiData, loanTenure);
+  }
+
+  // Generate EMI Schedule
+  function generateEMISchedule(monthlyPayment, loanTenure) {
+    scheduleBody.innerHTML = '';
+    const currentDate = new Date();
+    const emiData = [];
+
+    for (let month = 1; month <= loanTenure * 12; month++) {
+      const paymentDate = new Date(currentDate);
+      paymentDate.setMonth(paymentDate.getMonth() + month);
+
+      const principal = (monthlyPayment * (loanTenure * 12 - month + 1) / (loanTenure * 12));
+      const interest = monthlyPayment - principal;
+
+      const row = `<tr>
+                    <td>${paymentDate.toLocaleDateString()}</td>
+                    <td>₹${monthlyPayment.toFixed(2)}</td>
+                    <td>₹${principal.toFixed(2)}</td>
+                    <td>₹${interest.toFixed(2)}</td>
+                  </tr>`;
+      scheduleBody.innerHTML += row;
+
+      emiData.push({ year: Math.ceil(month / 12), principal, interest });
+    }
+
+    return emiData;
+  }
+
+  // Update Yearly Bar Chart
+  function updateYearlyBarChart(emiData, loanTenure) {
+    const yearlyData = [];
+    for (let year = 1; year <= loanTenure; year++) {
+      const yearData = emiData.filter(data => data.year === year);
+      const principalTotal = yearData.reduce((sum, data) => sum + data.principal, 0);
+      const interestTotal = yearData.reduce((sum, data) => sum + data.interest, 0);
+
+      yearlyData.push({ year, principalTotal, interestTotal });
+    }
+
+    const labels = yearlyData.map(data => `Year ${data.year}`);
+    const principalData = yearlyData.map(data => data.principalTotal);
+    const interestData = yearlyData.map(data => data.interestTotal);
+
+    if (emiBarChart) emiBarChart.destroy();
+    emiBarChart = new Chart(document.getElementById('emiBarChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Principal', data: principalData, backgroundColor: '#007bff' },
+          { label: 'Interest', data: interestData, backgroundColor: '#ffc107' }
+        ]
       }
     });
   }
 
-  // Event Listeners for Sliders
-  loanAmountSlider.addEventListener('input', updateCalculator);
-  interestRateSlider.addEventListener('input', updateCalculator);
-  loanTenureSlider.addEventListener('input', updateCalculator);
-
-  // Initial Calculation
+  // Initialize
+  loanAmountSlider.addEventListener('input', () => syncValues(loanAmountSlider, loanAmountInput));
+  interestRateSlider.addEventListener('input', () => syncValues(interestRateSlider, interestRateInput));
+  loanTenureSlider.addEventListener('input', () => syncValues(loanTenureSlider, loanTenureInput));
+  loanAmountInput.addEventListener('input', () => syncValues(loanAmountInput, loanAmountSlider));
+  interestRateInput.addEventListener('input', () => syncValues(interestRateInput, interestRateSlider));
+  loanTenureInput.addEventListener('input', () => syncValues(loanTenureInput, loanTenureSlider));
   updateCalculator();
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
